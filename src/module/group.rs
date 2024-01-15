@@ -4,7 +4,7 @@ use serde::Serialize;
 
 use super::file::{File, FileKind};
 
-#[derive(Debug, Default, Serialize, Clone, Copy)]
+#[derive(Debug, Default, Serialize, Clone, Copy, PartialEq)]
 pub enum GroupStatus {
     Building,
     Unexpected,

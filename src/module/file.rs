@@ -64,6 +64,13 @@ impl File {
         *self.status.borrow_mut() = FileStatus::Missing;
         self
     }
+    pub fn is_not_match(&self) -> bool {
+        self.status.borrow().eq(&FileStatus::NotMatch)
+    }
+    pub fn not_match(&self) -> &Self {
+        *self.status.borrow_mut() = FileStatus::NotMatch;
+        self
+    }
     // pub fn is_fine(&self) -> bool {
     //     self.status.borrow().eq(&FileStatus::Fine)
     // }
@@ -146,6 +153,7 @@ pub enum FileStatus {
     #[default]
     Missing,
     Unexpected,
+    NotMatch,
 }
 
 #[cfg(test)]

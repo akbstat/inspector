@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Ok, Result};
+use qc_judgement::QcJudge;
 use std::{
     cell::Cell,
     collections::HashMap,
@@ -102,12 +103,11 @@ impl Inspector {
     fn update_qc_status(&self, group: &Group) -> &Self {
         let code = group.get_file_copies(FileKind::SasCode).0;
         let data = group.get_file_copies(FileKind::SasData);
-        let xpt = group.get_file_copies(FileKind::Xpt);
         let log = group.get_file_copies(FileKind::SasLog).0;
         let qc = group.get_file_copies(FileKind::QcResult);
 
         // let mut missing = false;
-        let original = vec![&code, &data.0, &xpt.0, &log, &qc.0];
+        let original = vec![&code, &data.0, &qc.0, &log];
         let expect = original
             .iter()
             .filter(|f| f.is_required())
@@ -128,7 +128,7 @@ impl Inspector {
         let status = self.update_status(&expect, &actual);
         group
             .set_status(status)
-            .set_files(vec![code, data.0, xpt.0, log, qc.0]);
+            .set_files(vec![code, data.0, qc.0, log]);
         self
     }
     /// get the hash map for all files in directory of adam program file, eg
@@ -217,7 +217,16 @@ impl Inspector {
         f.require().set_kind(file_kind);
         if let Some(meta) = file_map.get(&filename) {
             f.update_modified_at(sys_to_unix(meta.modified()?)?);
-            f.fine();
+            if f.kind().eq(&FileKind::QcResult) {
+                let p = self.paths.adam_qc().join(f.name());
+                if !QcJudge::new(p.as_path())?.judge() {
+                    f.not_match();
+                } else {
+                    f.fine();
+                }
+            } else {
+                f.fine();
+            }
         } else {
             f.missing();
         }
@@ -253,6 +262,15 @@ impl Inspector {
                 set_rest_to_unexpected(i);
                 break;
             }
+            if FileKind::QcResult.eq(&f.kind()) {
+                if f.is_not_match() {
+                    status = GroupStatus::NotMatch;
+                } else {
+                    if GroupStatus::NotMatch.ne(&status) {
+                        status = GroupStatus::Pass;
+                    }
+                }
+            }
         }
         if missing.get() {
             status = GroupStatus::Building;
@@ -271,9 +289,9 @@ mod tests {
     #[test]
     fn inspect_test() {
         let spec = Path::new(
-            r"D:\projects\rusty\mobius_kit\.mocks\specs\AK112-303 ADaM Specification v0.2.xlsx",
+            r"D:\Studies\ak112\303\documents\specs\AK112-303 ADaM Specification v0.2.xlsx",
         );
-        let root = Path::new(r"D:\网页下载文件\dingtalk\rtfs\202-113\inspector\CSR");
+        let root = Path::new(r"D:\Studies\ak112\303\stats\CSR");
         let paths = Paths::new(root);
         let i = Inspector::new(spec, paths).unwrap();
         let m = i.module().unwrap();

@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Ok, Result};
+use qc_judgement::QcJudge;
 use std::{
     cell::Cell,
     collections::HashMap,
@@ -241,7 +242,16 @@ impl Inspector {
         f.require().set_kind(file_kind);
         if let Some(meta) = file_map.get(&filename) {
             f.update_modified_at(sys_to_unix(meta.modified()?)?);
-            f.fine();
+            if f.kind().eq(&FileKind::QcResult) {
+                let p = self.paths.tfls_qc().join(f.name());
+                if !QcJudge::new(p.as_path())?.judge() {
+                    f.not_match();
+                } else {
+                    f.fine();
+                }
+            } else {
+                f.fine();
+            }
         } else {
             f.missing();
         }
@@ -277,6 +287,15 @@ impl Inspector {
                 set_rest_to_unexpected(i);
                 break;
             }
+            if FileKind::QcResult.eq(&f.kind()) {
+                if f.is_not_match() {
+                    status = GroupStatus::NotMatch;
+                } else {
+                    if GroupStatus::NotMatch.ne(&status) {
+                        status = GroupStatus::Pass;
+                    }
+                }
+            }
         }
         if missing.get() {
             status = GroupStatus::Building;
@@ -308,8 +327,8 @@ mod tests {
     use super::*;
     #[test]
     fn inspect_test() {
-        let spec = Path::new(r"D:\projects\rusty\mobius_kit\.mocks\specs\top-ak112-303-CSR.xlsx");
-        let root = Path::new(r"D:\网页下载文件\dingtalk\rtfs\202-113\inspector\CSR");
+        let root = Path::new(r"D:\Studies\ak112\303\stats\CSR");
+        let spec = Path::new(r"D:\Studies\ak112\303\stats\CSR\utility\top-ak112-303-CSR.xlsx");
         let paths = Paths::new(root);
         let i = Inspector::new(spec, paths).unwrap();
         let m = i.module().unwrap();
