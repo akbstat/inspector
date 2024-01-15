@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Ok, Result};
+use anyhow::{anyhow, Result};
 use qc_judgement::QcJudge;
 use std::{
     cell::Cell,
@@ -219,11 +219,18 @@ impl Inspector {
             f.update_modified_at(sys_to_unix(meta.modified()?)?);
             if f.kind().eq(&FileKind::QcResult) {
                 let p = self.paths.adam_qc().join(f.name());
-                if !QcJudge::new(p.as_path())?.judge() {
-                    f.not_match();
-                } else {
-                    f.fine();
-                }
+                match QcJudge::new(p.as_path()) {
+                    Ok(judge) => {
+                        if !judge.judge() {
+                            f.not_match();
+                        } else {
+                            f.fine();
+                        }
+                    }
+                    Err(_) => {
+                        f.is_not_match();
+                    }
+                };
             } else {
                 f.fine();
             }
