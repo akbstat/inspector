@@ -73,9 +73,9 @@ pub fn inspect_sdtm(spec: &Path, root: &Path) -> Result<Module> {
             qc_code,
             qc_data,
             qc_supp_data,
-            qc_log,
             qc_result,
             qc_supp_result,
+            qc_log,
         ]
         .iter()
         .filter(|f| f.is_required())

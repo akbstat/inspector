@@ -1,4 +1,7 @@
-use std::cell::{Cell, Ref, RefCell};
+use std::{
+    borrow::Borrow,
+    cell::{Cell, Ref, RefCell},
+};
 
 use serde::Serialize;
 
@@ -7,6 +10,7 @@ use super::GroupKind;
 #[derive(Debug, Default, Clone)]
 pub struct File {
     name: String,
+    size: Cell<u64>,
     required: Cell<bool>,
     modified_at: Cell<u64>,
     kind: RefCell<FileKind>,
@@ -23,6 +27,14 @@ impl File {
     }
     pub fn name(&self) -> &str {
         &self.name
+    }
+    pub fn set_size(&self, size: u64) -> &Self {
+        self.size.borrow().set(size);
+        self
+    }
+    // if file size is less than 5KB than regard it as not start
+    pub fn start_edit(&self, init_size: u64) -> bool {
+        self.size.borrow().get() > init_size
     }
     pub fn require(&self) -> &Self {
         self.required.set(true);

@@ -15,7 +15,7 @@ use crate::{
 
 #[derive(Debug, Default)]
 pub struct Inspector {
-    tops: Vec<String>,
+    tops: Vec<(String, bool)>,
     paths: Paths,
     latest_adam_data: u64,
     dev_program_files_map: HashMap<String, Metadata>,
@@ -47,7 +47,7 @@ impl Inspector {
 
     pub fn module(&self) -> Result<Module> {
         let m = Module::new();
-        for name in self.tops.iter() {
+        for (name, need_qc) in self.tops.iter() {
             let item = Item::new(name);
             let dev = Group::new();
             let qc = Group::new();
@@ -63,7 +63,12 @@ impl Inspector {
             dev.set_files(vec![dev_code, dev_log, dev_data, dev_output]);
             qc.set_files(vec![qc_code, qc_log, qc_data, qc_result]);
 
-            self.update_dev_status(&dev).update_qc_status(&qc);
+            self.update_dev_status(&dev);
+            if *need_qc {
+                self.update_qc_status(&qc);
+            } else {
+                qc.set_status(GroupStatus::NotApplicable);
+            }
             item.set_dev(dev).set_qc(qc);
             m.set_item(item);
         }
@@ -95,7 +100,7 @@ impl Inspector {
             }
             modified_x.partial_cmp(&modified_y).unwrap()
         });
-        let status = self.update_status(&expect, &actual);
+        let status = self.update_status(&expect, &actual, false);
         group
             .set_status(status)
             .set_files(vec![code, data.0, output.0, log]);
@@ -127,7 +132,7 @@ impl Inspector {
             }
             modified_x.partial_cmp(&modified_y).unwrap()
         });
-        let status = self.update_status(&expect, &actual);
+        let status = self.update_status(&expect, &actual, true);
         group
             .set_status(status)
             .set_files(vec![code, data.0, qc.0, log]);
@@ -241,7 +246,8 @@ impl Inspector {
         let f = File::new(&filename);
         f.require().set_kind(file_kind);
         if let Some(meta) = file_map.get(&filename) {
-            f.update_modified_at(sys_to_unix(meta.modified()?)?);
+            f.update_modified_at(sys_to_unix(meta.modified()?)?)
+                .set_size(meta.len());
             if f.kind().eq(&FileKind::QcResult) {
                 let p = self.paths.tfls_qc().join(f.name());
                 match QcJudge::new(p.as_path()) {
@@ -266,7 +272,7 @@ impl Inspector {
     }
 
     /// update status of files and caculate a group status
-    fn update_status(&self, expect: &[&&File], actual: &[&&File]) -> GroupStatus {
+    fn update_status(&self, expect: &[&&File], actual: &[&&File], is_qc: bool) -> GroupStatus {
         let mut status = GroupStatus::Ready;
         let missing = Cell::new(false);
         let set_rest_to_unexpected = |i| {
@@ -282,6 +288,11 @@ impl Inspector {
             if f.is_missing() {
                 status = GroupStatus::Building;
                 set_rest_to_unexpected(i);
+                break;
+            }
+            if f.kind().eq(&FileKind::SasCode) && !f.start_edit(init_size(is_qc)) {
+                status = GroupStatus::NotStart;
+                set_rest_to_unexpected(i + 1);
                 break;
             }
             if f.kind().ne(&FileKind::SasCode) && f.modified_at().lt(&self.latest_adam_data) {
@@ -304,7 +315,7 @@ impl Inspector {
                 }
             }
         }
-        if missing.get() {
+        if missing.get() && status.ne(&GroupStatus::NotStart) {
             status = GroupStatus::Building;
         }
         status
@@ -313,6 +324,13 @@ impl Inspector {
     pub fn latest_adam_data(&self) -> u64 {
         self.latest_adam_data
     }
+}
+
+fn init_size(is_qc: bool) -> u64 {
+    if is_qc {
+        return 2700;
+    }
+    2300
 }
 
 /// some file name need to be convert "-" into "_", depends on their file type, eg:

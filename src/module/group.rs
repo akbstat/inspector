@@ -12,6 +12,8 @@ pub enum GroupStatus {
     Ready,
     NotMatch,
     Pass,
+    NotApplicable,
+    NotStart,
     #[default]
     Unknown,
 }

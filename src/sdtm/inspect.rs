@@ -98,7 +98,7 @@ impl Inspector {
                 qc_supp_result,
             ]);
 
-            self.update_dev_status(&dev).update_qc_status(&qc);
+            self.update_dev_status(&dev).update_qc_status(&dev, &qc);
             item.set_dev(dev).set_qc(qc);
             m.set_item(item);
         }
@@ -129,18 +129,19 @@ impl Inspector {
             }
             modified_x.partial_cmp(&modified_y).unwrap()
         });
-        let status = self.update_status(&expect, &actual);
+        let status = self.update_status(&expect, &actual, false);
         group
             .set_status(status)
             .set_files(vec![code, data.0, data.1, xpt.0, xpt.1, log]);
         self
     }
 
-    fn update_qc_status(&self, group: &Group) -> &Self {
-        let code = group.get_file_copies(FileKind::SasCode).0;
-        let data = group.get_file_copies(FileKind::SasData);
-        let log = group.get_file_copies(FileKind::SasLog).0;
-        let qc = group.get_file_copies(FileKind::QcResult);
+    fn update_qc_status(&self, dev_group: &Group, qc_group: &Group) -> &Self {
+        let code = qc_group.get_file_copies(FileKind::SasCode).0;
+        let data = qc_group.get_file_copies(FileKind::SasData);
+        let dev_data = dev_group.get_file_copies(FileKind::SasData);
+        let log = qc_group.get_file_copies(FileKind::SasLog).0;
+        let qc = qc_group.get_file_copies(FileKind::QcResult);
 
         let original = vec![&code, &data.0, &data.1, &qc.0, &qc.1, &log];
         let expect = original
@@ -160,8 +161,26 @@ impl Inspector {
             }
             modified_x.partial_cmp(&modified_y).unwrap()
         });
-        let status = self.update_status(&expect, &actual);
-        group
+        let mut status = self.update_status(&expect, &actual, true);
+        if qc.0.is_required() {
+            if !dev_data.0.is_missing() {
+                if qc.0.modified_at().lt(&dev_data.0.modified_at()) {
+                    qc.0.unexpected();
+                    log.unexpected();
+                    status = GroupStatus::Unexpected;
+                }
+            }
+        }
+        if qc.1.is_required() {
+            if !dev_data.1.is_missing() {
+                if qc.1.modified_at().lt(&dev_data.1.modified_at()) {
+                    qc.1.unexpected();
+                    log.unexpected();
+                    status = GroupStatus::Unexpected;
+                }
+            }
+        }
+        qc_group
             .set_status(status)
             .set_files(vec![code, data.0, data.1, qc.0, qc.1, log]);
         self
@@ -263,7 +282,8 @@ impl Inspector {
         }
         f.require().set_kind(file_kind);
         if let Some(meta) = file_map.get(&filename) {
-            f.update_modified_at(sys_to_unix(meta.modified()?)?);
+            f.update_modified_at(sys_to_unix(meta.modified()?)?)
+                .set_size(meta.len());
             if f.kind().eq(&FileKind::QcResult) {
                 let p = self.paths.sdtm_qc().join(f.name());
                 match QcJudge::new(p.as_path()) {
@@ -288,7 +308,7 @@ impl Inspector {
     }
 
     /// update status of files and caculate a group status
-    fn update_status(&self, expect: &[&&File], actual: &[&&File]) -> GroupStatus {
+    fn update_status(&self, expect: &[&&File], actual: &[&&File], is_qc: bool) -> GroupStatus {
         let mut status = GroupStatus::Ready;
         let missing = Cell::new(false);
         let set_rest_to_unexpected = |i| {
@@ -300,10 +320,23 @@ impl Inspector {
                 }
             });
         };
+        let contains_supp = || {
+            for i in expect {
+                if i.is_required() && i.is_supp() {
+                    return true;
+                }
+            }
+            false
+        };
         for (i, f) in actual.iter().enumerate() {
             if f.is_missing() {
                 status = GroupStatus::Building;
                 set_rest_to_unexpected(i);
+                break;
+            }
+            if f.kind().eq(&FileKind::SasCode) && !f.start_edit(init_size(contains_supp(), is_qc)) {
+                status = GroupStatus::NotStart;
+                set_rest_to_unexpected(i + 1);
                 break;
             }
             if f.kind().ne(&FileKind::SasCode) && f.modified_at().lt(&self.latest_rawdata) {
@@ -326,7 +359,7 @@ impl Inspector {
                 }
             }
         }
-        if missing.get() {
+        if missing.get() && status.ne(&GroupStatus::NotStart) {
             status = GroupStatus::Building;
         }
         status
@@ -335,6 +368,19 @@ impl Inspector {
     pub fn latest_rawdata(&self) -> u64 {
         self.latest_rawdata
     }
+}
+
+fn init_size(contains_supp: bool, is_qc: bool) -> u64 {
+    if is_qc {
+        if contains_supp {
+            return 3350;
+        }
+        return 2850;
+    }
+    if contains_supp {
+        return 2850;
+    }
+    2600
 }
 
 #[cfg(test)]

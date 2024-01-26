@@ -58,7 +58,7 @@ pub fn inspect_tfls(top: &Path, root: &Path) -> Result<Module> {
             status: qc.status().clone(),
             files: vec![],
         };
-        [qc_code, qc_data, qc_log, qc_result]
+        [qc_code, qc_data, qc_result, qc_log]
             .iter()
             .filter(|f| f.is_required())
             .for_each(|f| {

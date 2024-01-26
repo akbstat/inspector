@@ -5,10 +5,11 @@ use std::path::Path;
 const TOP: &str = "top";
 const OUTPUT_NAME_COL_INDEX: usize = 4;
 const TARGET_ROWS_START_INDEX: usize = 1;
+const VALIDATION_LEVEL_INDEX: usize = 0;
 
 /// Read topline and get information for each output
-pub fn read_top(dir: &Path) -> Result<Vec<String>, Error> {
-    let mut outputs: Vec<String> = vec![];
+pub fn read_top(dir: &Path) -> Result<Vec<(String, bool)>, Error> {
+    let mut outputs: Vec<(String, bool)> = vec![];
     let mut workbook: Xlsx<_> = open_workbook(dir)?;
 
     let range = workbook.worksheet_range(TOP)?;
@@ -18,6 +19,7 @@ pub fn read_top(dir: &Path) -> Result<Vec<String>, Error> {
             continue;
         }
         let output;
+        let mut qc: bool = false;
         if let Some(e) = row.get(OUTPUT_NAME_COL_INDEX) {
             if e.eq(&Empty) {
                 break;
@@ -26,7 +28,15 @@ pub fn read_top(dir: &Path) -> Result<Vec<String>, Error> {
         } else {
             break;
         }
-        outputs.push(output);
+        if let Some(e) = row.get(VALIDATION_LEVEL_INDEX) {
+            if e.eq(&Empty) {
+                break;
+            }
+            if e.as_string().unwrap().eq("3") {
+                qc = true;
+            }
+        }
+        outputs.push((output, qc));
     }
     Ok(outputs)
 }
