@@ -143,7 +143,8 @@ impl Inspector {
         let log = qc_group.get_file_copies(FileKind::SasLog).0;
         let qc = qc_group.get_file_copies(FileKind::QcResult);
 
-        let original = vec![&code, &data.0, &data.1, &qc.0, &qc.1, &log];
+        // stage 0: compare code, data and log
+        let original = vec![&code, &data.0, &data.1, &log];
         let expect = original
             .iter()
             .filter(|f| f.is_required())
@@ -162,24 +163,57 @@ impl Inspector {
             modified_x.partial_cmp(&modified_y).unwrap()
         });
         let mut status = self.update_status(&expect, &actual, true);
-        if qc.0.is_required() {
-            if !dev_data.0.is_missing() {
-                if qc.0.modified_at().lt(&dev_data.0.modified_at()) {
-                    qc.0.unexpected();
-                    log.unexpected();
-                    status = GroupStatus::Unexpected;
-                }
+        // stage 1: handle qc-results
+        if status.ne(&GroupStatus::Ready) {
+            qc.0.unexpected();
+            if qc.1.is_required() {
+                qc.1.unexpected();
             }
-        }
-        if qc.1.is_required() {
-            if !dev_data.1.is_missing() {
-                if qc.1.modified_at().lt(&dev_data.1.modified_at()) {
+        } else {
+            // qc result for main domain
+            let previous = {
+                let x = data.0.modified_at();
+                let y = dev_data.0.modified_at();
+                if x.gt(&y) {
+                    x
+                } else {
+                    y
+                }
+            };
+
+            if previous.gt(&qc.0.modified_at()) {
+                status = GroupStatus::Unexpected;
+                qc.0.unexpected();
+            } else if qc.0.is_not_match() {
+                status = GroupStatus::NotMatch;
+            } else {
+                status = GroupStatus::Pass;
+            }
+
+            // qc result for supp domain
+            if qc.1.is_required() {
+                let previous = {
+                    let mut latest = 0u64;
+                    let previous_files = vec![&data.0, &data.1, &dev_data.0, &dev_data.1];
+                    previous_files.iter().for_each(|f| {
+                        let modified = f.modified_at();
+                        if modified.gt(&latest) {
+                            latest = modified
+                        }
+                    });
+                    latest
+                };
+                if previous.gt(&qc.1.modified_at()) {
+                    status = GroupStatus::Unexpected;
                     qc.1.unexpected();
-                    log.unexpected();
-                    status = GroupStatus::Unexpected;
+                } else if qc.1.is_not_match() {
+                    status = GroupStatus::NotMatch;
+                } else {
+                    status = GroupStatus::Pass;
                 }
             }
         }
+
         qc_group
             .set_status(status)
             .set_files(vec![code, data.0, data.1, qc.0, qc.1, log]);
@@ -344,20 +378,27 @@ impl Inspector {
                 set_rest_to_unexpected(i);
                 break;
             }
-            if !f.equal(expect.get(i).unwrap()) {
-                status = GroupStatus::Unexpected;
-                set_rest_to_unexpected(i);
-                break;
-            }
-            if FileKind::QcResult.eq(&f.kind()) {
-                if f.is_not_match() {
-                    status = GroupStatus::NotMatch;
-                } else {
-                    if GroupStatus::NotMatch.ne(&status) {
-                        status = GroupStatus::Pass;
-                    }
+            if let Some(expect_item) = expect.get(i) {
+                if !f.equal(expect_item) {
+                    status = GroupStatus::Unexpected;
+                    set_rest_to_unexpected(i);
+                    break;
                 }
             }
+            // if !f.equal(expect.get(i).unwrap()) {
+            //     status = GroupStatus::Unexpected;
+            //     set_rest_to_unexpected(i);
+            //     break;
+            // }
+            // if FileKind::QcResult.eq(&f.kind()) {
+            //     if f.is_not_match() {
+            //         status = GroupStatus::NotMatch;
+            //     } else {
+            //         if GroupStatus::NotMatch.ne(&status) {
+            //             status = GroupStatus::Pass;
+            //         }
+            //     }
+            // }
         }
         if missing.get() && status.ne(&GroupStatus::NotStart) {
             status = GroupStatus::Building;
