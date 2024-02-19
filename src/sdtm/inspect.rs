@@ -165,9 +165,21 @@ impl Inspector {
         let mut status = self.update_status(&expect, &actual, true);
         // stage 1: handle qc-results
         if status.ne(&GroupStatus::Ready) {
-            qc.0.unexpected();
-            if qc.1.is_required() {
-                qc.1.unexpected();
+            if !qc.0.is_missing() {
+                qc.0.unexpected();
+            } else {
+                if status.ne(&GroupStatus::NotStart) {
+                    status = GroupStatus::Building;
+                }
+            }
+            if qc.1.is_required() && !qc.1.is_missing() {
+                if !qc.1.is_missing() {
+                    qc.1.unexpected();
+                } else {
+                    if status.ne(&GroupStatus::NotStart) {
+                        status = GroupStatus::Building;
+                    }
+                }
             }
         } else {
             // qc result for main domain
@@ -180,18 +192,19 @@ impl Inspector {
                     y
                 }
             };
-
-            if previous.gt(&qc.0.modified_at()) {
-                status = GroupStatus::Unexpected;
-                qc.0.unexpected();
-            } else if qc.0.is_not_match() {
-                status = GroupStatus::NotMatch;
-            } else {
-                status = GroupStatus::Pass;
+            if !qc.0.is_missing() {
+                if previous.gt(&qc.0.modified_at()) {
+                    status = GroupStatus::Unexpected;
+                    qc.0.unexpected();
+                } else if qc.0.is_not_match() {
+                    status = GroupStatus::NotMatch;
+                } else {
+                    status = GroupStatus::Pass;
+                }
             }
 
             // qc result for supp domain
-            if qc.1.is_required() {
+            if qc.1.is_required() && !qc.0.is_missing() {
                 let previous = {
                     let mut latest = 0u64;
                     let previous_files = vec![&data.0, &data.1, &dev_data.0, &dev_data.1];

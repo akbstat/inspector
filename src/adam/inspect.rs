@@ -128,30 +128,33 @@ impl Inspector {
         });
         let mut status = self.update_status(&expect, &actual, true);
         // stage 1, handle qc result
-        if status.ne(&GroupStatus::Ready) {
-            qc.0.unexpected();
-            if qc.1.is_required() {
-                qc.1.unexpected();
+        if !qc.0.is_missing() {
+            if status.ne(&GroupStatus::Ready) {
+                qc.0.unexpected();
+            } else {
+                // qc result for main domain
+                let previous = {
+                    let x = data.0.modified_at();
+                    let y = dev_data.modified_at();
+                    if x.gt(&y) {
+                        x
+                    } else {
+                        y
+                    }
+                };
+
+                if previous.gt(&qc.0.modified_at()) {
+                    status = GroupStatus::Unexpected;
+                    qc.0.unexpected();
+                } else if qc.0.is_not_match() {
+                    status = GroupStatus::NotMatch;
+                } else {
+                    status = GroupStatus::Pass;
+                }
             }
         } else {
-            // qc result for main domain
-            let previous = {
-                let x = data.0.modified_at();
-                let y = dev_data.modified_at();
-                if x.gt(&y) {
-                    x
-                } else {
-                    y
-                }
-            };
-
-            if previous.gt(&qc.0.modified_at()) {
-                status = GroupStatus::Unexpected;
-                qc.0.unexpected();
-            } else if qc.0.is_not_match() {
-                status = GroupStatus::NotMatch;
-            } else {
-                status = GroupStatus::Pass;
+            if status.ne(&GroupStatus::NotStart) {
+                status = GroupStatus::Building;
             }
         }
 
