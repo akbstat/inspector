@@ -146,7 +146,7 @@ impl FileKind {
                     filename = format!("v-{}", filename);
                 }
                 FileKind::QcResult => {
-                    filename = format!("v_{}", filename);
+                    filename = format!("v-{}", filename);
                 }
                 FileKind::Xpt => {
                     filename = format!("v_{}", filename);
