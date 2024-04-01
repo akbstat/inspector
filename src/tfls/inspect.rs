@@ -394,7 +394,7 @@ fn init_size(is_qc: bool) -> u64 {
 /// ```
 fn file_name_convert(name: &str, kind: FileKind) -> String {
     match kind {
-        FileKind::SasData | FileKind::QcResult => name.replace("-", "_"),
+        FileKind::SasData => name.replace("-", "_"),
         _ => name.into(),
     }
 }
