@@ -4,6 +4,7 @@ mod module;
 mod sdtm;
 mod tfls;
 mod utils;
+pub mod v2;
 
 pub use api::adam::inspect_adam;
 pub use api::sdtm::inspect_sdtm;

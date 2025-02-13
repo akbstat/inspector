@@ -8,8 +8,12 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.75"
 calamine = "0.23.1"
-chrono = "0.4.31"
+chrono = { version = "0.4.31", features = ["serde"] }
 clap = { version = "4.4.11", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.108"
 qc_judgement = { path = "../qc_judgement" }
+thiserror = "2.0.10"
+regex = "1.11.1"
+lazy_static = "1.5.0"
+validator = { path = "../validator" }
