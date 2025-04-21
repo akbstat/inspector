@@ -76,3 +76,16 @@ pub fn auditing<P: AsRef<Path>>(
         None => Status::Missing,
     }
 }
+
+pub fn code_auditing<P: AsRef<Path>>(code: Option<&File<P>>) -> Status {
+    match code {
+        Some(code) => {
+            if code.modified_at.eq(&code.created_at) {
+                Status::Failed("File not start editing".into())
+            } else {
+                Status::Pass
+            }
+        }
+        None => Status::Missing,
+    }
+}

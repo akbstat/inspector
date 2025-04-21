@@ -1,4 +1,6 @@
-use super::audit::{auditing, total_status, AuditResult, SequenceAuditor, SequenceResult};
+use super::audit::{
+    auditing, code_auditing, total_status, AuditResult, SequenceAuditor, SequenceResult,
+};
 use crate::v2::{
     category::{FileType, Group},
     investigator::{
@@ -67,7 +69,7 @@ impl SdtmSequenceAuditor {
         SequenceResult {
             name,
             kind,
-            status: auditing(code, None, ""),
+            status: code_auditing(code),
             group,
             modified_at: code.map(|f| f.modified_at),
         }
