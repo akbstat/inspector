@@ -1,6 +1,6 @@
 use super::reader::{Config, ConfigReader};
 use crate::v2::error::Result;
-use calamine::{open_workbook, DataType, Range, Reader, Xlsx};
+use calamine::{open_workbook, Data, DataType, Range, Reader, Xlsx};
 use std::path::Path;
 
 const CONTENT: &str = "CONTENT";
@@ -23,7 +23,7 @@ impl ConfigReader for SdtmConfigReader {
     fn read(&self, file: &Path) -> Result<Vec<Config>> {
         let mut configs = vec![];
         let mut workbook: Xlsx<_> = open_workbook(&file)?;
-        let empty = DataType::String("".into());
+        let empty = Data::String("".into());
         let range = workbook.worksheet_range(CONTENT)?;
         for (n, row) in range.rows().into_iter().enumerate() {
             // skipping untarget rows
@@ -52,7 +52,7 @@ impl ConfigReader for SdtmConfigReader {
     }
 }
 
-fn detect_supp_domain(worksheet: &Range<DataType>) -> bool {
+fn detect_supp_domain(worksheet: &Range<Data>) -> bool {
     let mut allocation_column = None;
     for (index, row) in worksheet.rows().enumerate() {
         if index.lt(&DOMAIN_START_ROW) {

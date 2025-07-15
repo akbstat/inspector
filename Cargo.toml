@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.75"
-calamine = "0.23.1"
+calamine = "0.28.0"
 chrono = { version = "0.4.31", features = ["serde"] }
 clap = { version = "4.4.11", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }

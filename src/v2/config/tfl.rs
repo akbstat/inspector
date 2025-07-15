@@ -1,6 +1,6 @@
 use super::reader::{Config, ConfigReader};
 use crate::v2::error::Result;
-use calamine::{open_workbook, DataType, Reader, Xlsx};
+use calamine::{open_workbook, Data, DataType, Reader, Xlsx};
 use std::path::Path;
 
 const TOP: &str = "top";
@@ -22,7 +22,7 @@ impl ConfigReader for TflConfigReader {
     fn read(&self, file: &Path) -> Result<Vec<Config>> {
         let mut configs = vec![];
         let mut workbook: Xlsx<_> = open_workbook(&file)?;
-        let empty = DataType::String("".into());
+        let empty = Data::String("".into());
         let range = workbook.worksheet_range(TOP)?;
         for (n, row) in range.rows().into_iter().enumerate() {
             // skipping untarget rows
@@ -48,17 +48,17 @@ impl ConfigReader for TflConfigReader {
     }
 }
 
-fn validation(cell: Option<&DataType>) -> bool {
-    let cell = cell.unwrap_or(&DataType::Empty);
+fn validation(cell: Option<&Data>) -> bool {
+    let cell = cell.unwrap_or(&Data::Empty);
     match cell {
-        DataType::String(cell) => {
+        Data::String(cell) => {
             if cell.eq(VALIDATION_FLAG_STRING) {
                 true
             } else {
                 false
             }
         }
-        DataType::Float(cell) => {
+        Data::Float(cell) => {
             if cell.eq(&VALIDATION_FLAG_FLOAT) {
                 true
             } else {

@@ -1,5 +1,5 @@
 use anyhow::{Error, Result};
-use calamine::{open_workbook, DataType::Empty, Reader, Xlsx};
+use calamine::{open_workbook, DataType, Reader, Xlsx};
 use std::path::Path;
 
 const CONTENT: &str = "CONTENT";
@@ -19,7 +19,7 @@ pub fn read_spec(dir: &Path) -> Result<Vec<String>, Error> {
         }
         let domain;
         if let Some(e) = row.get(DOMAIN_COL_INDEX) {
-            if e.eq(&Empty) {
+            if e.is_empty() {
                 break;
             }
             domain = e.as_string().unwrap();

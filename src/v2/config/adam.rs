@@ -1,6 +1,6 @@
 use super::reader::{Config, ConfigReader};
 use crate::v2::error::Result;
-use calamine::{open_workbook, DataType, Reader, Xlsx};
+use calamine::{open_workbook, Data, DataType, Reader, Xlsx};
 use std::path::Path;
 
 const CONTENT: &str = "CONTENT";
@@ -19,7 +19,7 @@ impl ConfigReader for AdamConfigReader {
     fn read(&self, file: &Path) -> Result<Vec<Config>> {
         let mut configs = vec![];
         let mut workbook: Xlsx<_> = open_workbook(&file)?;
-        let empty = DataType::String("".into());
+        let empty = Data::String("".into());
         let range = workbook.worksheet_range(CONTENT)?;
         for (n, row) in range.rows().into_iter().enumerate() {
             // skipping untarget rows

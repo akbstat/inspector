@@ -1,5 +1,5 @@
 use anyhow::{Error, Result};
-use calamine::{open_workbook, DataType::Empty, Reader, Xlsx};
+use calamine::{open_workbook, DataType, Reader, Xlsx};
 use std::path::Path;
 
 const TOP: &str = "top";
@@ -21,7 +21,7 @@ pub fn read_top(dir: &Path) -> Result<Vec<(String, bool)>, Error> {
         let output;
         let mut qc: bool = false;
         if let Some(e) = row.get(OUTPUT_NAME_COL_INDEX) {
-            if e.eq(&Empty) {
+            if e.is_empty() {
                 break;
             }
             output = e.as_string().unwrap();
@@ -29,7 +29,7 @@ pub fn read_top(dir: &Path) -> Result<Vec<(String, bool)>, Error> {
             break;
         }
         if let Some(e) = row.get(VALIDATION_LEVEL_INDEX) {
-            if e.eq(&Empty) {
+            if e.is_empty() {
                 break;
             }
             if e.as_string().unwrap().eq("3") {
