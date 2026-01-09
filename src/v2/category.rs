@@ -7,7 +7,7 @@ pub enum Kind {
     TFLs,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum Group {
     Production,
     Validation,
@@ -22,7 +22,7 @@ impl Group {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum FileType {
     Code,
     Data,
@@ -30,4 +30,18 @@ pub enum FileType {
     Output,
     Log,
     Qc,
+}
+
+impl FileType {
+    pub fn extention(&self) -> String {
+        let extention = match self {
+            FileType::Code => "sas",
+            FileType::Data => "sas7bdat",
+            FileType::Xpt => "xpt",
+            FileType::Output => "rtf",
+            FileType::Log => "log",
+            FileType::Qc => "rtf",
+        };
+        extention.into()
+    }
 }

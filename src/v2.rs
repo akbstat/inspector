@@ -8,7 +8,7 @@ mod purpose;
 mod sequence;
 mod trial;
 
-pub use category::{Group, Kind};
+pub use category::{FileType, Group, Kind};
 pub use config::reader::read_config;
 pub use inspect::{
     inspector::inspect, inspector::log_detail, inspector::qc_detail, inspector::sequence_detail,
