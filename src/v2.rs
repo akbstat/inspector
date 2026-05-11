@@ -17,3 +17,4 @@ pub use inspect::{
 pub use investigator::investigator::{Investigator, InvestigatorParam};
 pub use product::{list_products, Product};
 pub use sequence::audit::AuditResult;
+pub use validator::sas_log::ExternalLogPattern;

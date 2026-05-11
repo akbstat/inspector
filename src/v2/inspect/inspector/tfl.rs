@@ -8,12 +8,17 @@ use crate::v2::{
     sequence::audit,
     Kind,
 };
-use validator::{qc::QcResultValidator, result::ReportResult, sas_log::SasLogValidatior};
+use validator::{
+    qc::QcResultValidator,
+    result::ReportResult,
+    sas_log::{ExternalLogPattern, SasLogValidatior},
+};
 
 pub struct TflInspector {
     investigator: Investigator,
     config: Vec<Config>,
     qc_ignore: Vec<String>,
+    external_log_patterns: Option<ExternalLogPattern>,
 }
 
 impl TflInspector {
@@ -21,11 +26,13 @@ impl TflInspector {
         investigator: Investigator,
         config: &[Config],
         qc_ignore: &[String],
+        external_log_patterns: Option<ExternalLogPattern>,
     ) -> TflInspector {
         TflInspector {
             investigator,
             config: config.to_vec(),
             qc_ignore: qc_ignore.to_vec(),
+            external_log_patterns,
         }
     }
 
@@ -33,7 +40,7 @@ impl TflInspector {
         let target_file = self.investigator.tfl_log(item, group);
         match target_file {
             Some(file) => {
-                let validator = SasLogValidatior::new();
+                let validator = SasLogValidatior::new(self.external_log_patterns.clone());
                 let result = validator
                     .validate(file.filepath)
                     .map_err(|_| Error::LogFailed(item.to_string()))?;

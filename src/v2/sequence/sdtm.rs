@@ -103,13 +103,13 @@ impl SdtmSequenceAuditor {
             Group::Validation => self.validation.supp_data.as_ref(),
         };
         let compare = match group {
-            Group::Production => self.production.main_data.as_ref(),
-            Group::Validation => self.validation.main_data.as_ref(),
+            Group::Production => self.production.code.as_ref(),
+            Group::Validation => self.validation.code.as_ref(),
         };
         SequenceResult {
             name,
             kind,
-            status: auditing(base, compare, "Main later than supp"),
+            status: auditing(base, compare, "Code later than data"),
             group,
             modified_at: self.production.supp_data.as_ref().map(|f| f.modified_at),
         }
@@ -186,19 +186,29 @@ impl SdtmSequenceAuditor {
             Group::Production => self.production.log.as_ref(),
             Group::Validation => self.validation.log.as_ref(),
         };
+        // let compare = match group {
+        //     Group::Production => match self.supp {
+        //         true => self.production.supp_data.as_ref(),
+        //         false => self.production.main_data.as_ref(),
+        //     },
+        //     Group::Validation => match self.supp {
+        //         true => self.validation.supp_qc.as_ref(),
+        //         false => self.validation.main_qc.as_ref(),
+        //     },
+        // };
         let compare = match group {
             Group::Production => match self.supp {
                 true => self.production.supp_data.as_ref(),
                 false => self.production.main_data.as_ref(),
             },
             Group::Validation => match self.supp {
-                true => self.validation.supp_qc.as_ref(),
-                false => self.validation.main_qc.as_ref(),
+                true => self.validation.supp_data.as_ref(),
+                false => self.validation.main_data.as_ref(),
             },
         };
         let message = match group {
-            Group::Production => "Data later than log",
-            Group::Validation => "QcResult later than log",
+            Group::Production => "Dataset later than log",
+            Group::Validation => "Dataset later than log",
         };
         SequenceResult {
             name,

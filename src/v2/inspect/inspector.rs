@@ -10,7 +10,10 @@ use adam::AdamInspector;
 use sdtm::SdtmInspector;
 use std::path::Path;
 use tfl::TflInspector;
-use validator::{qc::QcResultValidator, sas_log::SasLogValidatior};
+use validator::{
+    qc::QcResultValidator,
+    sas_log::{ExternalLogPattern, SasLogValidatior},
+};
 
 mod adam;
 mod sdtm;
@@ -25,13 +28,29 @@ pub fn inspect<P: AsRef<Path>>(
     config_file: P,
     kind: &Kind,
     qc_ignore: &[String],
+    external_log_pattern: Option<ExternalLogPattern>,
 ) -> Result<Vec<InspectionResult>> {
     let config = read_config(config_file, &kind)?;
     let investigator = Investigator::new(param);
     let inspector: Box<dyn Inspector> = match kind {
-        Kind::SDTM => Box::new(SdtmInspector::new(investigator, &config, qc_ignore)),
-        Kind::ADaM => Box::new(AdamInspector::new(investigator, &config, qc_ignore)),
-        Kind::TFLs => Box::new(TflInspector::new(investigator, &config, qc_ignore)),
+        Kind::SDTM => Box::new(SdtmInspector::new(
+            investigator,
+            &config,
+            qc_ignore,
+            external_log_pattern,
+        )),
+        Kind::ADaM => Box::new(AdamInspector::new(
+            investigator,
+            &config,
+            qc_ignore,
+            external_log_pattern,
+        )),
+        Kind::TFLs => Box::new(TflInspector::new(
+            investigator,
+            &config,
+            qc_ignore,
+            external_log_pattern,
+        )),
     };
     inspector.inspect()
 }
@@ -41,9 +60,10 @@ pub fn log_detail<P: AsRef<Path>>(
     item: &str,
     kind: &Kind,
     group: &Group,
+    external_log_pattern: Option<ExternalLogPattern>,
 ) -> Result<LogResult> {
     let investigator = Investigator::new(param);
-    let validator = SasLogValidatior::new();
+    let validator = SasLogValidatior::new(external_log_pattern);
     let file = match kind {
         Kind::SDTM => investigator.sdtm_log(item, group),
         Kind::ADaM => investigator.adam_log(item, group),
@@ -144,7 +164,7 @@ mod tests {
             root,
         };
         let qc_ignore = vec![];
-        let result = inspect(&param, &config, &kind, &qc_ignore);
+        let result = inspect(&param, &config, &kind, &qc_ignore, None);
         assert!(result.is_ok());
         Ok(())
     }
@@ -163,7 +183,7 @@ mod tests {
             root,
         };
         let qc_ignore = vec![];
-        let result = inspect(&param, &config, &kind, &qc_ignore);
+        let result = inspect(&param, &config, &kind, &qc_ignore, None);
         assert!(result.is_ok());
         Ok(())
     }
@@ -180,7 +200,7 @@ mod tests {
             root,
         };
         let qc_ignore = vec![];
-        let result = inspect(&param, &config, &kind, &qc_ignore);
+        let result = inspect(&param, &config, &kind, &qc_ignore, None);
         assert!(result.is_ok());
         Ok(())
     }

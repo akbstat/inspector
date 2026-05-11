@@ -126,11 +126,11 @@ impl AdamSequenceAuditor {
         };
         let product = match group {
             Group::Production => self.production.xpt.as_ref(),
-            Group::Validation => self.validation.qc.as_ref(),
+            Group::Validation => self.validation.dataset.as_ref(),
         };
         let message = match group {
             Group::Production => "Xpt later than log",
-            Group::Validation => "Qc later than log",
+            Group::Validation => "Dataset later than log",
         };
         let kind = FileType::Log;
         let name = filename(&self.item, &group, &kind);

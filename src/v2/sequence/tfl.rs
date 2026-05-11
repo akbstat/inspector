@@ -125,11 +125,11 @@ impl TflSequenceAuditor {
         };
         let compare = match group {
             Group::Production => self.production.output.as_ref(),
-            Group::Validation => self.validation.qc.as_ref(),
+            Group::Validation => self.validation.dataset.as_ref(),
         };
         let message = match group {
             Group::Production => "Output later than log",
-            Group::Validation => "Qc later than log",
+            Group::Validation => "Dataset later than log",
         };
         SequenceResult {
             name: filename(&self.item, &group, &kind),
