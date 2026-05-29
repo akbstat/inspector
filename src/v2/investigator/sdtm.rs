@@ -107,22 +107,36 @@ impl Investigator {
 
     pub fn sdtm_qc_main(&self, item: &str) -> Option<File<PathBuf>> {
         let group = Group::Validation;
-        let filepath = self
+        let mut filepath = self
             .root()
             .join(group.group_dir())
             .join(QC_DIR)
             .join(filename(&item, &group, &FileType::Qc));
+        if !filepath.exists() {
+            filepath = self
+                .root()
+                .join(group.group_dir())
+                .join(QC_DIR)
+                .join(filename(&item, &group, &FileType::QcLegacy));
+        }
         file(filepath)
     }
 
     pub fn sdtm_qc_supp(&self, item: &str) -> Option<File<PathBuf>> {
         let group = Group::Validation;
         let item = format!("supp{}", item);
-        let filepath = self
+        let mut filepath = self
             .root()
             .join(group.group_dir())
             .join(QC_DIR)
             .join(filename(&item, &group, &FileType::Qc));
+        if !filepath.exists() {
+            filepath = self
+                .root()
+                .join(group.group_dir())
+                .join(QC_DIR)
+                .join(filename(&item, &group, &FileType::QcLegacy));
+        }
         file(filepath)
     }
 }

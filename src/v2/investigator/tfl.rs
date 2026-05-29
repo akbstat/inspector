@@ -39,11 +39,18 @@ impl Investigator {
     }
 
     pub fn tfl_qc_result(&self, item: &str) -> Option<File<PathBuf>> {
-        let filepath = self
+        let mut filepath = self
             .root()
             .join(Group::Validation.group_dir())
             .join(QC_DIR)
             .join(filename(item, &Group::Validation, &FileType::Qc));
+        if !filepath.exists() {
+            filepath = self
+                .root()
+                .join(Group::Validation.group_dir())
+                .join(QC_DIR)
+                .join(filename(item, &Group::Validation, &FileType::QcLegacy));
+        }
         file(filepath)
     }
 

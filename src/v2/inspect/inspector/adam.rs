@@ -8,11 +8,17 @@ use crate::v2::{
     sequence::audit,
     Kind,
 };
+use lazy_static::lazy_static;
+use std::collections::HashSet;
 use validator::{
-    qc::QcResultValidator,
+    qc::{evaluator::QcResultEvaluator, html_report::QcResultHtmlParser, QcResultValidator},
     result::ReportResult,
     sas_log::{ExternalLogPattern, SasLogValidatior},
 };
+
+lazy_static! {
+    static ref QC_EVALUATOR: QcResultEvaluator = QcResultEvaluator::new();
+}
 
 pub struct AdamInspector {
     investigator: Investigator,
@@ -61,15 +67,44 @@ impl AdamInspector {
     }
 
     fn qc(&self, item: &str) -> Result<Status> {
-        match self.investigator.adam_qc_result(item) {
+        let target_file = self.investigator.adam_qc_result(item);
+        match target_file {
             Some(file) => {
-                let mut qc = QcResultValidator::new(file.filepath, &self.qc_ignore)
-                    .map_err(|_| Error::QcFailed)?;
-                let result = qc.validate().map_err(|_| Error::QcFailed)?;
-                match result {
-                    ReportResult::Pass => Ok(Status::Pass),
-                    ReportResult::Unknown => Ok(Status::Failed("Unknown error".into())),
-                    ReportResult::Fail(msg) => Ok(Status::Failed(msg)),
+                if file.filepath.to_string_lossy().ends_with(".html") {
+                    let qc_result = QcResultHtmlParser::new().parse(&file.filepath);
+                    let result = QC_EVALUATOR.evaluate(&qc_result);
+                    match result.status {
+                        validator::qc::evaluator::QcStatus::Pass => Ok(Status::Pass),
+                        validator::qc::evaluator::QcStatus::Unknown => {
+                            Ok(Status::Failed("Unknown error".into()))
+                        }
+                        validator::qc::evaluator::QcStatus::Failed => {
+                            let mut errors =
+                                result.error_log.into_iter().collect::<HashSet<String>>();
+                            for ignore in self.qc_ignore.iter() {
+                                errors.remove(ignore);
+                            }
+                            Ok(if errors.is_empty() {
+                                Status::Pass
+                            } else {
+                                if errors.len().gt(&1) {
+                                    Status::Failed("Multiple".to_string())
+                                } else {
+                                    let errors = errors.drain().collect::<Vec<String>>();
+                                    Status::Failed(errors.get(0).unwrap().clone())
+                                }
+                            })
+                        }
+                    }
+                } else {
+                    let mut qc = QcResultValidator::new(file.filepath, &self.qc_ignore)
+                        .map_err(|_| Error::QcFailed)?;
+                    let result = qc.validate().map_err(|_| Error::QcFailed)?;
+                    match result {
+                        ReportResult::Pass => Ok(Status::Pass),
+                        ReportResult::Unknown => Ok(Status::Failed("Unknown error".into())),
+                        ReportResult::Fail(msg) => Ok(Status::Failed(msg)),
+                    }
                 }
             }
             None => Ok(Status::Missing),

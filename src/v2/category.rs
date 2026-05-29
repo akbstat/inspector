@@ -30,6 +30,7 @@ pub enum FileType {
     Output,
     Log,
     Qc,
+    QcLegacy,
 }
 
 impl FileType {
@@ -40,7 +41,8 @@ impl FileType {
             FileType::Xpt => "xpt",
             FileType::Output => "rtf",
             FileType::Log => "log",
-            FileType::Qc => "rtf",
+            FileType::Qc => "html",
+            FileType::QcLegacy => "rtf",
         };
         extention.into()
     }

@@ -148,7 +148,13 @@ impl SdtmSequenceAuditor {
     }
 
     fn audit_main_qc(&self) -> SequenceResult {
-        let kind = FileType::Qc;
+        let mut kind = FileType::Qc;
+        if let Some(qc) = &self.validation.main_qc {
+            let name = qc.name.to_owned();
+            if name.ends_with(".rtf") {
+                kind = FileType::QcLegacy;
+            }
+        }
         let name = filename(&self.item, &Group::Validation, &kind);
         SequenceResult {
             name,
@@ -164,7 +170,13 @@ impl SdtmSequenceAuditor {
     }
 
     fn audit_supp_qc(&self) -> SequenceResult {
-        let kind = FileType::Qc;
+        let mut kind = FileType::Qc;
+        if let Some(qc) = &self.validation.supp_qc {
+            let name = qc.name.to_owned();
+            if name.ends_with(".rtf") {
+                kind = FileType::QcLegacy;
+            }
+        }
         let name = filename(&format!("supp{}", &self.item), &Group::Validation, &kind);
         SequenceResult {
             name,

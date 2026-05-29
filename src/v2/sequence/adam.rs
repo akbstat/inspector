@@ -108,7 +108,13 @@ impl AdamSequenceAuditor {
         if !status.is_pass() {
             status = auditing(base, prod_dataset, "Qc later than prod dataset");
         }
-        let kind = FileType::Qc;
+        let mut kind = FileType::Qc;
+        if let Some(qc) = &self.validation.qc {
+            let name = qc.name.to_owned();
+            if name.ends_with(".rtf") {
+                kind = FileType::QcLegacy;
+            }
+        }
         let name = filename(&self.item, &Group::Validation, &kind);
         SequenceResult {
             name,

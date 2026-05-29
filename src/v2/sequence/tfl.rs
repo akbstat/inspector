@@ -97,7 +97,13 @@ impl TflSequenceAuditor {
     }
 
     fn audit_qc(&self) -> SequenceResult {
-        let kind = FileType::Qc;
+        let mut kind = FileType::Qc;
+        if let Some(qc) = &self.validation.qc {
+            let name = qc.name.to_owned();
+            if name.ends_with(".rtf") {
+                kind = FileType::QcLegacy;
+            }
+        }
         let base = self.validation.qc.as_ref();
         let prod_dataset = self.production.dataset.as_ref();
         let val_dataset = self.validation.dataset.as_ref();

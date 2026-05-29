@@ -7,17 +7,22 @@ use crate::v2::{
     sequence::audit::{self, AuditResult},
 };
 use adam::AdamInspector;
+use lazy_static::lazy_static;
 use sdtm::SdtmInspector;
-use std::path::Path;
+use std::{collections::HashSet, path::Path};
 use tfl::TflInspector;
 use validator::{
-    qc::QcResultValidator,
+    qc::{evaluator::QcResultEvaluator, html_report::QcResultHtmlParser, QcResultValidator},
     sas_log::{ExternalLogPattern, SasLogValidatior},
 };
 
 mod adam;
 mod sdtm;
 mod tfl;
+
+lazy_static! {
+    static ref QC_EVALUATOR: QcResultEvaluator = QcResultEvaluator::new();
+}
 
 pub trait Inspector {
     fn inspect(&self) -> Result<Vec<InspectionResult>>;
@@ -107,22 +112,63 @@ pub fn qc_detail<P: AsRef<Path>>(
         };
         match item {
             Some(file) => {
-                let mut validator =
-                    QcResultValidator::new(file.filepath, ignore).map_err(|_| Error::QcFailed)?;
-                let result = validator.validate().map_err(|_| Error::QcFailed)?;
-                match result {
-                    validator::result::ReportResult::Pass => results.push(QcResult {
-                        item_type,
-                        status: Status::Pass,
-                    }),
-                    validator::result::ReportResult::Unknown => results.push(QcResult {
-                        item_type,
-                        status: Status::Failed("Unknown Reason".into()),
-                    }),
-                    validator::result::ReportResult::Fail(reason) => results.push(QcResult {
-                        item_type,
-                        status: Status::Failed(reason),
-                    }),
+                if file.filepath.to_string_lossy().ends_with(".html") {
+                    let qc_result = QcResultHtmlParser::new().parse(&file.filepath);
+                    let result = QC_EVALUATOR.evaluate(&qc_result);
+                    match result.status {
+                        validator::qc::evaluator::QcStatus::Pass => results.push(QcResult {
+                            item_type,
+                            status: Status::Pass,
+                        }),
+                        validator::qc::evaluator::QcStatus::Unknown => results.push(QcResult {
+                            item_type,
+                            status: Status::Failed("Unknown Reason".into()),
+                        }),
+                        validator::qc::evaluator::QcStatus::Failed => {
+                            let mut errors =
+                                result.error_log.into_iter().collect::<HashSet<String>>();
+                            for ignore in ignore.iter() {
+                                errors.remove(ignore);
+                            }
+                            if errors.is_empty() {
+                                results.push(QcResult {
+                                    item_type,
+                                    status: Status::Pass,
+                                });
+                            } else {
+                                if errors.len().gt(&1) {
+                                    results.push(QcResult {
+                                        item_type,
+                                        status: Status::Failed("Multiple".to_string()),
+                                    });
+                                } else {
+                                    let errors = errors.drain().collect::<Vec<String>>();
+                                    results.push(QcResult {
+                                        item_type,
+                                        status: Status::Failed(errors.get(0).unwrap().clone()),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    let mut validator = QcResultValidator::new(file.filepath, ignore)
+                        .map_err(|_| Error::QcFailed)?;
+                    let result = validator.validate().map_err(|_| Error::QcFailed)?;
+                    match result {
+                        validator::result::ReportResult::Pass => results.push(QcResult {
+                            item_type,
+                            status: Status::Pass,
+                        }),
+                        validator::result::ReportResult::Unknown => results.push(QcResult {
+                            item_type,
+                            status: Status::Failed("Unknown Reason".into()),
+                        }),
+                        validator::result::ReportResult::Fail(reason) => results.push(QcResult {
+                            item_type,
+                            status: Status::Failed(reason),
+                        }),
+                    }
                 }
             }
             None => results.push(QcResult {
